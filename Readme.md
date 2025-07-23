@@ -1,32 +1,4 @@
-# A Multimodal Benchmark Dataset and Model for Crop Disease Diagnosis
-
-## Introduction
-CDDM dataset is the crop disease domain multimodal dataset, a pioneering resource designed to advance the field of agricultural research through the application of multimodal learning techniques. 
-
-
-## CDDM dataset
-The CDDM dataset includes images and conversation data. 
-### CDDM images:
-Please download CDDM images from the following link and extract it to the /dataset/ directory.
-- [Google Drive](https://drive.google.com/file/d/1kfB3zkittoef4BasOhwvAb8Cb66EPXst/view?usp=sharing)
-
-### CDDM conversation:
-We offer the conversation data in two formats suitable for training Qwen-VL and LLaVA models. The data covers crop disease diagnosis and knowledge.
-
-Please extract the conversation data to the /dataset/VQA/ directory. 
-- [Qwen-VL training data](VQA/Crop_Disease_train_qwenvl.zip)
-- [LLaVA training data](VQA/Crop_Disease_train_llava.zip)
-- [Test data](VQA/test_dataset.zip)
-
-## Paper
-For more details, please refer to our paper: [ECCV 2024 Paper](https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/11606.pdf)  , [arxiv](https://arxiv.org/abs/2503.06973)
-
-
 **Refer to [CDDMBench](https://github.com/SushAN766/CDDMBench) for more details.**
-
-
-
-
 
 # 🧠 Analysis of Multimodal Data Using GNN (CDDM Dataset)
 
