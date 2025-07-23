@@ -1,0 +1,133 @@
+# A Multimodal Benchmark Dataset and Model for Crop Disease Diagnosis
+
+## Introduction
+CDDM dataset is the crop disease domain multimodal dataset, a pioneering resource designed to advance the field of agricultural research through the application of multimodal learning techniques. 
+
+
+## CDDM dataset
+The CDDM dataset includes images and conversation data. 
+### CDDM images:
+Please download CDDM images from the following link and extract it to the /dataset/ directory.
+- [Google Drive](https://drive.google.com/file/d/1kfB3zkittoef4BasOhwvAb8Cb66EPXst/view?usp=sharing)
+
+### CDDM conversation:
+We offer the conversation data in two formats suitable for training Qwen-VL and LLaVA models. The data covers crop disease diagnosis and knowledge.
+
+Please extract the conversation data to the /dataset/VQA/ directory. 
+- [Qwen-VL training data](VQA/Crop_Disease_train_qwenvl.zip)
+- [LLaVA training data](VQA/Crop_Disease_train_llava.zip)
+- [Test data](VQA/test_dataset.zip)
+
+## Paper
+For more details, please refer to our paper: [ECCV 2024 Paper](https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/11606.pdf)  , [arxiv](https://arxiv.org/abs/2503.06973)
+
+
+Refer to [CDDMBench][cddm-link] for more details.
+
+[cddm-link]: https://github.com/SushAN766/CDDMBench
+
+
+# 🧠 Analysis of Multimodal Data Using GNN (CDDM Dataset)
+
+This project demonstrates how to process multimodal data (images + text) from the **CDDM dataset**, convert it into graph format, and train a **Graph Neural Network (GNN)** to perform classification using PyTorch Geometric.
+
+---
+
+## 📁 Folder Structure
+
+multimodal-gnn-cddm/                   
+├── dataset/images                     # CDDM image files
+├── gnn-env 
+├── VQA
+├── .gitignore               
+├── Crop_Disease_train_llava.json      # CDDM conversation file
+├── Crop_Disease_train_qwenvl.json         
+├── disease_knowledge.json
+├── disease_diagnosis.json
+├── cddm_graph_builder.py       # Feature extraction + graph building
+├── cddm_gnn_trainer.py         # GCN model training
+├── cddm_visualizer.py          # t-SNE/PCA & training visualization
+├── output/                     # Output files (auto-created)
+│   ├── ccdm_graph.pt           # Saved graph
+│   ├── gnn_model.pth           # Trained model weights
+│   ├── training_log.txt        # Epoch logs (optional)
+│   ├── embedding_visualization.png
+│   └── loss_accuracy_plot.png
+└── README.md                   # Project documentation in markdown
+
+
+
+---
+
+## 🔧 Setup Instructions
+
+### ✅ Step 1: Create Virtual Environment (Optional)
+
+```bash
+python -m venv gnn-env
+source gnn-env/bin/activate        # Linux/macOS
+gnn-env\Scripts\activate          # Windows
+```
+## ✅ Step 2: Install Dependencies
+
+```bash
+pip install torch torchvision torchaudio
+pip install torch-geometric -f https://data.pyg.org/whl/torch-2.0.1+cu117.html  # Replace cu117 if needed
+pip install transformers
+pip install scikit-learn
+pip install matplotlib
+pip install tqdm
+pip install clip
+```
+
+## 🚀 How to Run
+
+### 📌 Step 1: Graph Construction
+
+```shell
+python cddm_graph_builder.py
+```
+
+- Loads Crop_Disease_train_llava.json and image folder
+- Extracts image features using ResNet50
+- Extracts text features using BERT
+- Constructs a graph and saves it as output/graph_data.pt
+
+### 📌 Step 2: Train GCN Model
+
+```shell
+python cddm_gnn_trainer.py
+```
+- Loads the graph
+- Trains a 2-layer GCN for classification
+- Saves model as output/gnn_model.pth
+
+### 📌 Step 3: Visualize Results
+
+```shell
+python cddm_visualizer.py
+```
+- Reduces node embeddings using t-SNE or PCA
+- Generates: embedding_visualization.png
+- If training_log.txt exists, also plots loss_accuracy_plot.png
+
+## 🎯 Project Objectives
+
+- Preprocess multimodal data (image + text)  
+- Convert preprocessed data into graph representation  
+- Apply GNN models for prediction and insight  
+
+---
+
+## 📈 Possible Improvements
+
+- Use **GraphSAGE** or **GAT** instead of GCN  
+- Construct edges based on **cosine similarity** or **KNN**  
+- Use **multi-task** or **multi-label** outputs  
+
+---
+
+## 📬 Credits
+
+- **Dataset**: Crop Disease Diagnosis Multimodal (CDDM)  
+- **Libraries**: PyTorch Geometric,HuggingFace Transformers,scikit-learn,matplotlib
