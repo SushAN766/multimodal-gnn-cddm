@@ -22,9 +22,10 @@ Please extract the conversation data to the /dataset/VQA/ directory.
 For more details, please refer to our paper: [ECCV 2024 Paper](https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/11606.pdf)  , [arxiv](https://arxiv.org/abs/2503.06973)
 
 
-Refer to [CDDMBench][cddm-link] for more details.
+**Refer to [CDDMBench](https://github.com/SushAN766/CDDMBench) for more details.**
 
-[cddm-link]: https://github.com/SushAN766/CDDMBench
+
+
 
 
 # 🧠 Analysis of Multimodal Data Using GNN (CDDM Dataset)
@@ -34,29 +35,29 @@ This project demonstrates how to process multimodal data (images + text) from th
 ---
 
 ## 📁 Folder Structure
-
+```plaintext
 multimodal-gnn-cddm/                   
-├── dataset/images                     # CDDM image files
-├── gnn-env 
-├── VQA
-├── .gitignore               
-├── Crop_Disease_train_llava.json      # CDDM conversation file
-├── Crop_Disease_train_qwenvl.json         
-├── disease_knowledge.json
-├── disease_diagnosis.json
-├── cddm_graph_builder.py       # Feature extraction + graph building
-├── cddm_gnn_trainer.py         # GCN model training
-├── cddm_visualizer.py          # t-SNE/PCA & training visualization
-├── output/                     # Output files (auto-created)
-│   ├── ccdm_graph.pt           # Saved graph
-│   ├── gnn_model.pth           # Trained model weights
-│   ├── training_log.txt        # Epoch logs (optional)
-│   ├── embedding_visualization.png
-│   └── loss_accuracy_plot.png
-└── README.md                   # Project documentation in markdown
+├── dataset/images/                    # CDDM image files
+├── gnn-env/                           # Python virtual environment (excluded via .gitignore)
+├── VQA/                               # Visual Question Answering components
+├── .gitignore                         # Git ignore rules
+├── Crop_Disease_train_llava.json     # CDDM conversation file (LLaVA format)
+├── Crop_Disease_train_qwenvl.json    # CDDM conversation file (Qwen-VL format)
+├── disease_knowledge.json            # Domain-specific knowledge base
+├── disease_diagnosis.json            # Ground-truth diagnosis labels
+├── cddm_graph_builder.py             # Feature extraction + graph construction script
+├── cddm_gnn_trainer.py               # GCN model training script
+├── cddm_visualizer.py                # Training & embedding visualization (PCA/t-SNE)
+├── output/                           # Output directory (auto-created)
+│   ├── ccdm_graph.pt                 # Saved PyG graph
+│   ├── gnn_model.pth                 # Trained model weights
+│   ├── training_log.txt              # Training logs (optional)
+│   ├── embedding_visualization.png  # Visual representation of embeddings
+│   └── loss_accuracy_plot.png       # Training loss & accuracy plot
+└── README.md                         # Project documentation
 
 
-
+```
 ---
 
 ## 🔧 Setup Instructions
