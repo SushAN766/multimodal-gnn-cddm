@@ -14,7 +14,7 @@ import os
 from cddm_gnn_trainer import GCN
 
 # -------- CONFIG -------- #
-GRAPH_PATH = "./output/graph_data.pt"
+GRAPH_PATH = "cddm_graph.pt"
 MODEL_PATH = "./output/gnn_model.pth"
 LOG_PATH = "./output/training_log.txt"
 VIS_TYPE = "tsne"  # or "pca"
