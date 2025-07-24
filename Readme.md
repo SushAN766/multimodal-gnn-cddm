@@ -74,7 +74,7 @@ pip install transformers
 pip install scikit-learn
 pip install matplotlib
 pip install tqdm
-pip install clip
+pip install git+https://github.com/openai/CLIP.git
 ```
 
 ## 🚀 How to Run
