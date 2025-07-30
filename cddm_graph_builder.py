@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import torch
 import torchvision.transforms as transforms
@@ -9,9 +10,11 @@ from torch_geometric.data import Data
 from sklearn.neighbors import NearestNeighbors
 import clip
 from PIL import Image
+from collections import Counter
+import sys
 
 # === Paths ===
-IMAGE_ROOT = "E:/multimodal-gnn-cddm"
+IMAGE_ROOT = "E:/multimodal-gnn-cddm/dataset/images"  # ✅ Update to your dataset folder
 CONV_JSON = "Crop_Disease_train_llava.json"
 QNA_JSON = "Crop_Disease_train_qwenvl.json"
 DIAGNOSIS_JSON = "disease_diagnosis.json"
@@ -19,17 +22,17 @@ KNOWLEDGE_JSON = "disease_knowledge.json"
 
 # === Load data ===
 with open(CONV_JSON, 'r', encoding='utf-8') as f:
-    entries = json.load(f)
+    llava_data = json.load(f)
 with open(QNA_JSON, 'r', encoding='utf-8') as f:
-    qna_data = json.load(f)
+    qwenvl_data = json.load(f)
 with open(DIAGNOSIS_JSON, 'r', encoding='utf-8') as f:
-    diagnosis_info = json.load(f)
+    diagnosis_data = json.load(f)
 with open(KNOWLEDGE_JSON, 'r', encoding='utf-8') as f:
-    knowledge = json.load(f)
+    knowledge_data = json.load(f)
 
 # === Initialize models ===
 device = "cuda" if torch.cuda.is_available() else "cpu"
-resnet = models.resnet50(pretrained=True)
+resnet = models.resnet50(weights="IMAGENET1K_V1")
 resnet = torch.nn.Sequential(*list(resnet.children())[:-1])
 resnet.eval().to(device)
 
@@ -38,9 +41,26 @@ img_transform = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-clip_model, clip_preprocess = clip.load("ViT-B/32", device=device)
+clip_model, _ = clip.load("ViT-B/32", device=device)
 
-# === Feature extraction functions ===
+# === Helper functions ===
+def extract_image_path(conversations):
+    """Extract image path from <img>...</img> in conversations"""
+    for conv in conversations:
+        if 'value' in conv and '<img>' in conv['value']:
+            match = re.search(r'<img>(.*?)</img>', conv['value'])
+            if match:
+                return match.group(1)
+    return None
+
+def normalize_image_path(image_path):
+    """Clean image path and get category"""
+    image_path = image_path.lstrip("/")
+    if image_path.startswith("dataset/images/"):
+        image_path = image_path.replace("dataset/images/", "", 1)
+    category = image_path.split("/")[0]
+    return image_path, category
+
 def extract_image_feature(image_path):
     image = Image.open(image_path).convert("RGB")
     image = img_transform(image).unsqueeze(0).to(device)
@@ -49,68 +69,145 @@ def extract_image_feature(image_path):
     return feat.cpu()
 
 def extract_text_feature(text):
+    # Truncate text safely for CLIP (max 77 tokens)
+    text = text.strip()
+    tokens = clip.tokenize([text], truncate=True).to(device)
     with torch.no_grad():
-        text_tokens = clip.tokenize([text]).to(device)
-        text_features = clip_model.encode_text(text_tokens)
-        return text_features.squeeze(0).cpu()
+        text_features = clip_model.encode_text(tokens)
+    return text_features.squeeze(0).cpu()
+
+def shorten_text(question="", answer="", limit=200):
+    """Combine question + first 200 chars of answer"""
+    return f"{question} {answer[:limit]}"
 
 # === Build dataset ===
-X = []
-labels = []
+X, labels = [], []
 missing = 0
-print("🔄 Processing entries and extracting features...")
 
-for item in tqdm(entries):
-    try:
-        if not isinstance(item, dict):
-            print("⚠️ Skipping non-dict item.")
-            continue
+print("🔄 Processing entries from all JSON files...")
+debug_samples = []
 
-        relative_path = item.get('image', '').lstrip("/")
-        img_path = os.path.join(".", relative_path)
-        if not os.path.exists(img_path):
+# === Process LLaVA data ===
+for item in llava_data:
+    image_path = item.get('image')
+    if image_path:
+        image_path, category = normalize_image_path(image_path)
+        debug_samples.append((image_path, category))
+
+        conv_text = " ".join([c.get('value', '') for c in item.get('conversations', []) if isinstance(c, dict)])
+        combined_text = shorten_text(conv_text, "")
+
+        img_full_path = os.path.join(IMAGE_ROOT, image_path)
+        if not os.path.exists(img_full_path):
             missing += 1
             continue
 
-        img_feat = extract_image_feature(img_path)
+        img_feat = extract_image_feature(img_full_path)
+        text_feat = extract_text_feature(combined_text)
+        X.append(torch.cat([img_feat, text_feat]))
+        labels.append(category)
 
-        conv_text = ""
-        if 'conversations' in item and isinstance(item['conversations'], list) and item['conversations']:
-            if isinstance(item['conversations'][0], dict):
-                conv_text = item['conversations'][0].get('value', '')
+# === Process QwenVL data ===
+for item in qwenvl_data:
+    image_path = extract_image_path(item.get('conversations', []))
+    if image_path:
+        image_path, category = normalize_image_path(image_path)
+        debug_samples.append((image_path, category))
 
-        qna_text = qna_data.get(str(item.get('id', '')), '') if isinstance(qna_data, dict) else ""
-        diagnosis_text = diagnosis_info.get(item.get('category', ''), '') if isinstance(diagnosis_info, dict) else ""
-        knowledge_text = knowledge.get(item.get('category', ''), '') if isinstance(knowledge, dict) else ""
+        conv_text = " ".join([c.get('value', '') for c in item.get('conversations', []) if isinstance(c, dict)])
+        combined_text = shorten_text(conv_text, "")
 
-        full_text = f"{conv_text} {qna_text} {diagnosis_text} {knowledge_text}"
-        text_feat = extract_text_feature(full_text)
-        combined = torch.cat([img_feat, text_feat])
-        X.append(combined)
-        labels.append(item.get('category', 'unknown'))
+        img_full_path = os.path.join(IMAGE_ROOT, image_path)
+        if not os.path.exists(img_full_path):
+            missing += 1
+            continue
 
-    except Exception as e:
-        print(f"⚠️ Skipping item due to error: {e}")
-        continue
+        img_feat = extract_image_feature(img_full_path)
+        text_feat = extract_text_feature(combined_text)
+        X.append(torch.cat([img_feat, text_feat]))
+        labels.append(category)
+
+# === Process diagnosis data ===
+for item in diagnosis_data:
+    image_path = item.get('image')
+    if image_path:
+        image_path, category = normalize_image_path(image_path)
+        debug_samples.append((image_path, category))
+
+        combined_text = shorten_text(item.get('question', ''), item.get('answer', ''))
+
+        img_full_path = os.path.join(IMAGE_ROOT, image_path)
+        if not os.path.exists(img_full_path):
+            missing += 1
+            continue
+
+        img_feat = extract_image_feature(img_full_path)
+        text_feat = extract_text_feature(combined_text)
+        X.append(torch.cat([img_feat, text_feat]))
+        labels.append(category)
+
+# === Process knowledge data ===
+for item in knowledge_data:
+    image_path = item.get('image')
+    if image_path:
+        image_path, category = normalize_image_path(image_path)
+        debug_samples.append((image_path, category))
+
+        combined_text = shorten_text(item.get('question', ''), item.get('answer', ''))
+
+        img_full_path = os.path.join(IMAGE_ROOT, image_path)
+        if not os.path.exists(img_full_path):
+            missing += 1
+            continue
+
+        img_feat = extract_image_feature(img_full_path)
+        text_feat = extract_text_feature(combined_text)
+        X.append(torch.cat([img_feat, text_feat]))
+        labels.append(category)
+
+# Debug info
+print("\n🔍 First 5 samples:")
+for img_path, cat in debug_samples[:5]:
+    print(f"Path: {img_path} | Category: {cat}")
 
 print(f"\n✅ Total processed: {len(X)}")
 print(f"❌ Missing images: {missing}")
 
-# === Label encoding ===
+# === Check class distribution ===
+print("\n📊 Checking class distribution...")
+class_counts = Counter(labels)
+print("Class counts:", class_counts)
+
+if len(class_counts) <= 1:
+    print("❌ Only one unique class found. Cannot train a classifier.")
+    sys.exit(1)
+
+if len(X) < 200:
+    print("⚠️ WARNING: Very small dataset. Training results may be meaningless.")
+
+# === Encode labels ===
 print("🔤 Encoding labels...")
 le = LabelEncoder()
 y = torch.tensor(le.fit_transform(labels), dtype=torch.long)
 x = torch.stack(X)
 
-# === Create graph edges using KNN (memory safe) ===
-print("🔗 Creating sparse KNN graph edges...")
-x_np = x.cpu().numpy()
-knn = NearestNeighbors(n_neighbors=10, metric='cosine').fit(x_np)
-edges = knn.kneighbors_graph(x_np, mode='connectivity').tocoo()
-edge_index = torch.tensor([edges.row, edges.col], dtype=torch.long)
+# === Create edges with KNN ===
+print("🔗 Creating KNN graph edges...")
+k = 10
+x_np = x.numpy()
+nbrs = NearestNeighbors(n_neighbors=k+1, metric='cosine').fit(x_np)
+_, indices = nbrs.kneighbors(x_np)
+
+edge_list = []
+for i, neighbors in enumerate(indices):
+    for j in neighbors[1:]:
+        edge_list.append([i, j])
+
+edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
+edge_index = torch.cat([edge_index, edge_index.flip(0)], dim=1)
 
 # === Save graph ===
-print("💾 Saving graph to 'cddm_graph.pt'...")
+print("\n💾 Saving graph to 'cddm_graph.pt'...")
 data = Data(x=x, edge_index=edge_index, y=y)
 torch.save(data, "cddm_graph.pt")
 print("✅ Graph saved successfully.")
